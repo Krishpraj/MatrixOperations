@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix</title>
+    <link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+    <script type="text/javascript"></script>
+</html>
+
+<h1>Matrix Calculator</h1>
+
+
+<form id="matrix-form">
+    <label for="matrix-size">Matrix size:</label>
+    <input type="number" id="matrix-size" name="matrix-size" min="1" max="10" required>
+    <button type="submit">Create matrix</button>
+    <button type="button" id="rref-button">Row-Reduce to Echelon Form (RREF)</button>
+    <button type="button" id="transpose-button">Transpose</button>
+    <button type="button" id="dot-product-button">Dot Product</button>
+    <button type="button" id="cross-product-button">Cross Product (3x3 only)</button>
+    <button type="button" id="invertibility-button">Check Invertibility</button>
+</form>
+
+<div id="original-matrix-container"></div>
+<div id="rref-matrix-container"></div>
+<div id="transpose-matrix-container"></div>
+<div id="dot-product-result-container"></div>
+<div id="cross-product-result-container"></div>
+<div id="invertibility-result-container"></div>
+
+<script>
+    let matrix = [];
+
+    document.getElementById("matrix-form").addEventListener("submit", function(event) {
+        event.preventDefault();
+
+        const matrixSize = parseInt(document.getElementById("matrix-size").value, 10);
+        matrix = createMatrix(matrixSize);  
+        const matrixTable = createMatrixTable(matrix, true); 
+
+        document.getElementById("original-matrix-container").innerHTML = ''; 
+        document.getElementById("original-matrix-container").appendChild(matrixTable);
+    });
+
+    createMatrix = (size) => {
+        const matrix = [];
+        for (let i = 0; i < size; i++) {
+            matrix.push([]);
+            for (let j = 0; j < size; j++) {
+                matrix[i].push(0);
+            }
+        }
+        return matrix;
+    };
+
+    createMatrixTable = (matrix, editable) => {
+        const table = document.createElement("table");
+
+        matrix.forEach((row, rowIndex) => {
+            const tr = document.createElement("tr");
+
+            row.forEach((cell, colIndex) => {
+                const td = document.createElement("td");
+
+                if (editable) {
+                    
+                    const input = document.createElement("input");
+                    input.type = "number";
+                    input.value = cell;
+                    input.id = `cell-${rowIndex}-${colIndex}`;
+                    input.min = 0;
+                    input.max = 100;
+
+            
+                    input.addEventListener("input", (e) => {
+                        matrix[rowIndex][colIndex] = parseInt(e.target.value) || 0;
+                    });
+
+                    td.appendChild(input);
+                } else {
+                    // Display as non-editable span
+                    const span = document.createElement("span");
+                    span.textContent = cell;
+                    td.appendChild(span);
+                }
+
+                tr.appendChild(td);
+            });
+            table.appendChild(tr);
+        });
+
+        return table;
+    };
+
+    document.getElementById("rref-button").addEventListener("click", function() {
+        const rrefMatrix = rowReduceToRREF(matrix);
+        const matrixTable = createMatrixTable(rrefMatrix, false); // Set editable to false
+        document.getElementById("rref-matrix-container").innerHTML = '';
+        document.getElementById("rref-matrix-container").appendChild(matrixTable);
+    });
+
+
+    document.getElementById("transpose-button").addEventListener("click", function() {
+        const transposedMatrix = transposeMatrix(matrix);
+        const matrixTable = createMatrixTable(transposedMatrix, false); // Set editable to false
+        document.getElementById("transpose-matrix-container").innerHTML = '';
+        document.getElementById("transpose-matrix-container").appendChild(matrixTable);
+    });
+
+
+    document.getElementById("dot-product-button").addEventListener("click", function() {
+        const matrix2 = prompt("Enter second matrix in a comma-separated format (e.g., 1,2,3;4,5,6;7,8,9)").split(';')
+            .map(row => row.split(',').map(Number));
+        if (matrix[0].length !== matrix2.length) {
+            alert("Matrix dimensions must match for dot product!");
+            return;
+        }
+        const result = dotProduct(matrix, matrix2);
+        document.getElementById("dot-product-result-container").innerHTML = `Dot Product Result: <pre>${JSON.stringify(result, null, 2)}</pre>`;
+    });
+
+    document.getElementById("cross-product-button").addEventListener("click", function() {
+        if (matrix.length === 3 && matrix[0].length === 3) {
+            const crossProductResult = crossProduct(matrix);
+            document.getElementById("cross-product-result-container").innerHTML = `Cross Product Result: <pre>${JSON.stringify(crossProductResult, null, 2)}</pre>`;
+        } else {
+            alert("Cross product is only defined for 3x3 matrices.");
+        }
+    });
+
+
+    document.getElementById("invertibility-button").addEventListener("click", function() {
+        const invertible = isInvertible(matrix);
+        document.getElementById("invertibility-result-container").innerHTML = `Invertibility: ${invertible ? "Yes" : "No"}`;
+    });
+
+
+    const rowReduceToRREF = (matrix) => {
+        let row = 0;
+        let col = 0;
+
+        const rowCount = matrix.length;
+        const colCount = matrix[0].length;
+
+        while (row < rowCount && col < colCount) {
+            let pivotRow = row;
+
+            
+            for (let i = row + 1; i < rowCount; i++) {
+                if (Math.abs(matrix[i][col]) > Math.abs(matrix[pivotRow][col])) {
+                    pivotRow = i;
+                }
+            }
+
+            if (matrix[pivotRow][col] === 0) {
+                col++;
+                continue;
+            }
+
+       
+            if (pivotRow !== row) {
+                [matrix[row], matrix[pivotRow]] = [matrix[pivotRow], matrix[row]];
+            }
+
+           
+            const pivotValue = matrix[row][col];
+            for (let j = col; j < colCount; j++) {
+                matrix[row][j] /= pivotValue;
+            }
+
+            for (let i = row + 1; i < rowCount; i++) {
+                if (matrix[i][col] !== 0) {
+                    const factor = matrix[i][col];
+                    for (let j = col; j < colCount; j++) {
+                        matrix[i][j] -= factor * matrix[row][j];
+                    }
+                }
+            }
+
+            row++;
+            col++;
+        }
+
+        for (let i = rowCount - 1; i >= 0; i--) {
+            for (let j = colCount - 1; j >= 0; j--) {
+                if (matrix[i][j] !== 0) {
+                    for (let k = i - 1; k >= 0; k--) {
+                        if (matrix[k][j] !== 0) {
+                            const factor = matrix[k][j];
+                            for (let l = j; l < colCount; l++) {
+                                matrix[k][l] -= factor * matrix[i][l];
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+        return matrix;
+    };
+
+    const transposeMatrix = (matrix) => {
+        const transposed = [];
+        for (let i = 0; i < matrix[0].length; i++) {
+            transposed.push([]);
+            for (let j = 0; j < matrix.length; j++) {
+                transposed[i].push(matrix[j][i]);
+            }
+        }
+        return transposed;
+    };
+
+    const dotProduct = (matrix1, matrix2) => {
+        const result = [];
+        for (let i = 0; i < matrix1.length; i++) {
+            result.push([]);
+            for (let j = 0; j < matrix2[0].length; j++) {
+                let sum = 0;
+                for (let k = 0; k < matrix1[0].length; k++) {
+                    sum += matrix1[i][k] * matrix2[k][j];
+                }
+                result[i].push(sum);
+            }
+        }
+        return result;
+    };
+
+
+    const crossProduct = (matrix) => {
+        const a = matrix[0];
+        const b = matrix[1];
+        const c = matrix[2];
+        
+        return [
+            [
+                a[1] * b[2] - a[2] * b[1],
+                a[2] * b[0] - a[0] * b[2],
+                a[0] * b[1] - a[1] * b[0]
+            ]
+        ];
+    };
+
+   
+    const isInvertible = (matrix) => {
+        if (matrix.length !== matrix[0].length) return false;
+        
+        const determinant = calculateDeterminant(matrix);
+        return determinant !== 0;
+    };
+
+    const calculateDeterminant = (matrix) => {
+        if (matrix.length === 2) {
+            return matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0];
+        }
+        if (matrix.length === 3) {
+            return (
+                matrix[0][0] * (matrix[1][1] * matrix[2][2] - matrix[1][2] * matrix[2][1]) -
+                matrix[0][1] * (matrix[1][0] * matrix[2][2] - matrix[1][2] * matrix[2][0]) +
+                matrix[0][2] * (matrix[1][0] * matrix[2][1] - matrix[1][1] * matrix[2][0])
+            );
+        }
+        return 0; 
+    };
+</script>
